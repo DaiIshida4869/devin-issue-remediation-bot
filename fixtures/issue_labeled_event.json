@@ -4,10 +4,10 @@
     "name": "devin-remediate"
   },
   "issue": {
-    "number": 1,
-    "title": "Improve developer setup documentation clarity",
-    "html_url": "https://github.com/DaiIshida4869/superset/issues/1",
-    "body": "The local development setup steps are easy to misread. Please clarify the prerequisites and add a short troubleshooting note. Limit the change to documentation only.",
+    "number": 7,
+    "title": "Clarify ambiguous developer setup steps",
+    "html_url": "https://github.com/DaiIshida4869/superset/issues/7",
+    "body": "### Summary\n\nSome local development setup steps are easy to misread because the expected\ncommand, working directory, or prerequisite is not always explicit. This issue\ntracks small wording improvements so each step has a single, unambiguous\ninterpretation.\n\n### Scope\n\nDocumentation changes only. This issue should not require changes to application\ncode, runtime configuration, dependency versions, CI behavior, or setup scripts.\n\n### Proposed changes\n\n1. Reword ambiguous steps in the local development setup guide so each step names\n   the expected command, working directory, and prerequisite where relevant.\n2. Add cross-references between related setup, frontend, backend, and validation\n   sections where readers commonly need to jump between them.\n\n### Why\n\nClearer setup docs lower the barrier for first-time contributors and reduce the\nnumber of repeated setup questions.\n",
     "labels": [
       {
         "name": "documentation"

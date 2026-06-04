@@ -81,9 +81,15 @@ Environment variables (see [.env.example](.env.example)):
 
 ## Run locally (uv)
 
-[fixtures/issue_labeled_event.json](fixtures/issue_labeled_event.json) is a sample event
-payload — edit its `repository.full_name` and `issue` fields to target a real issue in your
-fork before running the `remediate` command below.
+[fixtures/issue_labeled_event.json](fixtures/issue_labeled_event.json) is a saved copy of the
+`issues.labeled` event for a real issue in the fork. The live Action uses the payload GitHub
+provides automatically, so this file is only for local replay. To replay a different issue,
+regenerate it from that issue rather than editing the body by hand:
+
+```bash
+gh issue view <N> --repo <owner>/superset --json number,title,body,url \
+  | python3 -c 'import json,sys; s=json.load(sys.stdin); json.dump({"action":"labeled","label":{"name":"devin-remediate"},"issue":{"number":s["number"],"title":s["title"],"html_url":s["url"],"body":s["body"],"labels":[{"name":"devin-remediate"}]},"repository":{"full_name":"<owner>/superset"}}, open("fixtures/issue_labeled_event.json","w"), indent=2)'
+```
 
 ```bash
 # Simulate the production event from a fixture
