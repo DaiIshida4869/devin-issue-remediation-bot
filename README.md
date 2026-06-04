@@ -100,16 +100,21 @@ stage carries only the virtualenv and app code).
 ```bash
 docker build -t devin-remediation-bot .
 
-# Simulate an event
+# Smoke test — no credentials needed; prints an empty report
+docker run --rm devin-remediation-bot report
+
+# Delegate an issue to Devin (needs DEVIN_API_KEY + DEVIN_ORG_ID in .env)
 docker run --rm --env-file .env -v "$PWD/data:/app/data" \
   devin-remediation-bot remediate --event fixtures/issue_labeled_event.json
 
-# Poll for status
+# Refresh session status, then print the updated report
 docker run --rm --env-file .env -v "$PWD/data:/app/data" \
   devin-remediation-bot poll
+docker run --rm -v "$PWD/data:/app/data" devin-remediation-bot report
 ```
 
-The `data` volume mount persists `tasks.json` and `report.md` on the host.
+The `data` volume mount persists `tasks.json` and `report.md` on the host. The `report`
+smoke test needs no secrets, so a reviewer can verify the image builds and runs immediately.
 
 ## Observability
 
@@ -134,8 +139,9 @@ client (mocked HTTP), and the orchestrator (mocked Devin client) — 41 cases.
 
 ## Limitations
 
-- This is a take-home demo, not a production GitHub App; the event path is a local fixture
-  replay rather than a hosted webhook receiver.
+- This is a take-home demo, not a production GitHub App. The event trigger is a GitHub Actions
+  workflow on the fork (issue labeled `devin-remediate`), not a standalone hosted webhook
+  receiver; the bundled fixture replays the same payload locally.
 - No scheduler or dashboard; `poll` is run on demand.
 - PR extraction relies on Devin reporting the PR on the session; complex multi-PR flows are out
   of scope.
