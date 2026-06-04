@@ -4,40 +4,32 @@ An event-driven automation that turns a GitHub issue into a remediation pull req
 delegating the work to a [Devin](https://docs.devin.ai/api-reference/overview) session, then
 tracks every delegated task so an engineering leader can see whether the workflow is working.
 
-## Problem
-
-Engineering teams accumulate a steady stream of small maintenance work: documentation gaps,
-missing tests, minor code-quality issues, dependency bumps. Each item is low-risk but
-collectively it drains senior-engineer time. This bot lets a team express such work as a
-GitHub issue and hands it to Devin as an autonomous remediation worker, leaving humans to
-review the result instead of doing the busywork.
-
 ## Solution
 
-```text
-GitHub Issue (labeled "devin-remediate")
-  -> Event payload
-  -> Python orchestrator
-  -> Devin API session
-  -> Devin remediation (branch + checks + PR)
-  -> tasks.json + report.md
+```mermaid
+flowchart TD
+    I["Issue labeled<br/>'devin-remediate'"]
+    W["GitHub Actions<br/>remediate.yml (Superset fork)"]
+    O["Orchestrator<br/>parse event, build scoped prompt"]
+    S["Devin v3 API<br/>create session, poll/sync status + PR URL"]
+    D["Devin<br/>inspect repo, make safe change, run checks"]
+    PR["Pull request"]
+    R["report.md + Job Summary<br/>status-report.yml"]
+
+    I --> W
+    W --> O
+    O --> S
+    S --> D
+    D --> PR
+    S --> R
+
+    linkStyle default stroke:#2f81f7,stroke-width:2px;
 ```
 
 The orchestrator builds a tightly scoped prompt from the issue, opens a Devin session, and
-records the session. A `poll` step later refreshes each session's status and captures the PR
-URL, keeping `tasks.json` and `report.md` current.
-
-## Architecture
-
-| Component                                  | Responsibility                                                |
-| ------------------------------------------ | ------------------------------------------------------------- |
-| [app/event.py](app/event.py)               | Parse a GitHub `issues` webhook payload into a domain `Issue` |
-| [app/prompt.py](app/prompt.py)             | Build the scoped remediation prompt and session title         |
-| [app/devin_client.py](app/devin_client.py) | Wrap the Devin v3 sessions API (create / get / message)       |
-| [app/task_store.py](app/task_store.py)     | Persist tasks to `data/tasks.json`                            |
-| [app/report.py](app/report.py)             | Render `data/report.md` from tasks                            |
-| [app/orchestrator.py](app/orchestrator.py) | Tie the pieces together: delegate, poll, report               |
-| [app/cli.py](app/cli.py)                   | `remediate` / `poll` / `sync` / `report` subcommands          |
+records the session. Within that session Devin works as an engineer: it inspects the repo,
+makes a safe change, runs checks, and opens a pull request. A `poll` step later refreshes
+each session's status and captures the PR URL, keeping `tasks.json` and `report.md` current.
 
 ## Event trigger
 
@@ -57,6 +49,8 @@ To deploy the trigger on the fork:
    field set to this bot's repo.
 2. Add `DEVIN_API_KEY` and `DEVIN_ORG_ID` as Actions secrets on the fork.
 3. Create the `devin-remediate` label and apply it to an issue — the workflow auto-fires.
+
+Status is observable separately, from this repo rather than the fork — see [Observability](#observability).
 
 ## How Devin is used
 
@@ -128,14 +122,20 @@ smoke test needs no secrets, so a reviewer can verify the image builds and runs 
 
 ## Observability
 
+Status is meant to be checked from the web: the scheduled CI run summary is the primary view, and
+the same state is also written to disk for local inspection.
+
+- **CI run summary (primary)** — [.github/workflows/status-report.yml](.github/workflows/status-report.yml)
+  runs every 10 minutes (and on demand) and renders the report into the run's Job Summary plus a
+  downloadable artifact, so the latest run on the Actions tab always shows the current state with
+  nothing to run locally and nothing committed back to the repo. The trigger lives on the fork,
+  but this status-report workflow lives in **this** repo: add `DEVIN_API_KEY` and `DEVIN_ORG_ID`
+  as Actions secrets here, then open the latest run on this repo's Actions tab — or trigger it
+  manually — to see current status.
 - **`data/tasks.json`** — machine-readable state per delegated task: issue, status,
   Devin session id/url, PR url, timestamps.
 - **`data/report.md`** — a human-readable table with a status summary line
   (e.g. `Completed: 2 | Failed: 1`) so a leader can see throughput and what needs attention.
-- **CI run summary** — [.github/workflows/status-report.yml](.github/workflows/status-report.yml)
-  runs every 10 minutes (and on demand) and renders the report into the run's Job Summary plus a
-  downloadable artifact, so the latest run on the Actions tab always shows the current state with
-  nothing to run locally and nothing committed back to the repo.
 
 The `sync` command (`uv run python main.py sync`) is what that workflow runs: instead of reading
 local state, it **lists the org's Devin sessions, recognizes the bot's own by their
@@ -167,3 +167,11 @@ client (mocked HTTP), and the orchestrator (mocked Devin client) — 47 cases.
 - PR extraction relies on Devin reporting the PR on the session; complex multi-PR flows are out
   of scope.
 - Scope was intentionally kept small to fit the 2–3 hour constraint.
+
+## Next steps
+
+- **Report retention / log rotation.** Today `sync` rebuilds the report from every matching
+  Devin session, so completed tasks accumulate in the report indefinitely. A better design would
+  separate the live view (active and recently-completed work) from history: roll older completed
+  tasks into a dated archive and rotate the per-run log artifacts, so the status summary stays
+  focused on what needs attention while the full session-by-session logs remain retrievable on demand.
