@@ -170,8 +170,29 @@ client (mocked HTTP), and the orchestrator (mocked Devin client) — 47 cases.
 
 ## Next steps
 
-- **Report retention / log rotation.** Today `sync` rebuilds the report from every matching
-  Devin session, so completed tasks accumulate in the report indefinitely. A better design would
-  separate the live view (active and recently-completed work) from history: roll older completed
-  tasks into a dated archive and rotate the per-run log artifacts, so the status summary stays
-  focused on what needs attention while the full session-by-session logs remain retrievable on demand.
+- **Stronger guardrails**
+
+  Limit Devin to an allow-list of labels, file paths, and issue types, so it never starts a
+  session on ambiguous or high-risk work.
+
+- **Improved status dashboard**
+
+  Surface cost, duration, success rate, and pending reviews per task, so a leader can see at a
+  glance whether the spend is justified.
+
+- **Connect to real team processes**
+
+  Push status to Slack, file Jira tickets, and feed weekly engineering reports from the same
+  session-derived source of truth.
+
+- **Reduce scheduled CI waste**
+
+  The report reruns every 10 minutes even when nothing is active; trigger it via
+  `repository_dispatch` when a PR lands, poll frequently only while sessions are live, and cache
+  the `uv` setup.
+
+- **Report retention / log rotation**
+
+  `sync` rebuilds from every matching session, so completed tasks pile up indefinitely; split the
+  live view from a dated archive and rotate per-run log artifacts so the summary stays focused on
+  what needs attention.
