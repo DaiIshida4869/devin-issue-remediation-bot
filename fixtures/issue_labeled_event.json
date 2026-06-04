@@ -6,7 +6,7 @@
   "issue": {
     "number": 1,
     "title": "Improve developer setup documentation clarity",
-    "html_url": "https://github.com/YOUR_USERNAME/superset/issues/1",
+    "html_url": "https://github.com/DaiIshida4869/superset/issues/1",
     "body": "The local development setup steps are easy to misread. Please clarify the prerequisites and add a short troubleshooting note. Limit the change to documentation only.",
     "labels": [
       {
@@ -18,6 +18,6 @@
     ]
   },
   "repository": {
-    "full_name": "YOUR_USERNAME/superset"
+    "full_name": "DaiIshida4869/superset"
   }
 }
