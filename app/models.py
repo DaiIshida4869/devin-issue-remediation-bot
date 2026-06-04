@@ -49,34 +49,22 @@ _BLOCKED_DETAILS: set[str] = {
 }
 
 
-def is_session_finished(status: str | None, status_detail: str | None) -> bool:
-    """Return True when a v3 session has completed its task.
-
-    Devin can report ``finished`` while the coarse ``status`` is still
-    ``running`` (task done, VM not yet torn down) or once it has reached
-    ``exit``. Either case means the remediation attempt is over.
-    """
-    return status_detail == 'finished' and status in ('running', 'exit')
-
-
 def map_devin_status(status: str | None, status_detail: str | None) -> TaskStatus:
     """Translate a Devin v3 session status into a TaskStatus.
 
-    v3 exposes a coarse ``status`` plus a finer ``status_detail``. We collapse
-    both onto our own lifecycle, defaulting to WORKING for anything unexpected.
+    Completion is decided by the orchestrator from the presence of a pull
+    request, not here: a Devin session commonly lingers in ``waiting_for_user``
+    ("awaiting instructions") long after the work is done, so the session status
+    alone cannot tell us the task succeeded. This maps the pre-PR lifecycle.
     """
     if status in ('new', 'claimed'):
         return TaskStatus.SESSION_CREATED
-    if is_session_finished(status, status_detail):
-        return TaskStatus.COMPLETED
     if status == 'suspended':
         return TaskStatus.BLOCKED
     if status in ('running', 'resuming'):
         if status_detail in _BLOCKED_DETAILS:
             return TaskStatus.BLOCKED
         return TaskStatus.WORKING
-    if status == 'exit':
-        return TaskStatus.FAILED
-    if status == 'error':
+    if status in ('exit', 'error'):
         return TaskStatus.FAILED
     return TaskStatus.WORKING

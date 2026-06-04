@@ -88,6 +88,27 @@ def test_poll_should_complete_when_finished_while_still_running(
     assert tasks[0].pr_url == 'https://github.com/example/superset/pull/7'
 
 
+def test_poll_should_complete_when_pr_present_even_while_awaiting_user(
+    tmp_path, mocker: MockerFixture, sample_issue: Issue, fixed_clock: Callable[[], str]
+) -> None:
+    devin = mocker.Mock(spec=DevinClient)
+    devin.create_session.return_value = DevinSession(session_id='devin-abc', url='')
+    # Devin opened a PR but the session lingers in waiting_for_user ("awaiting instructions").
+    devin.get_session.return_value = DevinSessionStatus(
+        status='running',
+        status_detail='waiting_for_user',
+        pr_url='https://github.com/example/superset/pull/8',
+        raw={},
+    )
+    orchestrator = _orchestrator(tmp_path, devin, fixed_clock)
+    orchestrator.remediate_issue(sample_issue)
+
+    tasks = orchestrator.poll()
+
+    assert tasks[0].status == TaskStatus.COMPLETED
+    assert tasks[0].pr_url == 'https://github.com/example/superset/pull/8'
+
+
 def test_poll_should_mark_finished_without_pr_as_failed(
     tmp_path, mocker: MockerFixture, sample_issue: Issue, fixed_clock: Callable[[], str]
 ) -> None:

@@ -133,8 +133,11 @@ smoke test needs no secrets, so a reviewer can verify the image builds and runs 
 - **`data/report.md`** — a human-readable table with a status summary line
   (e.g. `Completed: 2 | Failed: 1`) so a leader can see throughput and what needs attention.
 
-Status flows `session_created -> working / blocked -> completed / failed`, mapped from Devin's
-v3 `status` + `status_detail` fields in [app/models.py](app/models.py).
+A task is marked **completed once Devin opens a pull request** — the session often lingers in
+`waiting_for_user` ("awaiting instructions") after the work is done, so the PR, not the session
+state, is the success signal. Until a PR exists the status reflects the Devin session
+(`session_created -> working / blocked`, or `failed` if it ends without one), mapped from v3's
+`status` / `status_detail` in [app/models.py](app/models.py).
 
 ## Tests
 

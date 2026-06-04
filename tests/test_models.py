@@ -18,9 +18,9 @@ from app.models import map_devin_status
         ('running', 'waiting_for_user', TaskStatus.BLOCKED),
         ('running', 'waiting_for_approval', TaskStatus.BLOCKED),
         ('suspended', None, TaskStatus.BLOCKED),
-        ('exit', 'finished', TaskStatus.COMPLETED),
-        # Devin can report finished while the VM is still running.
-        ('running', 'finished', TaskStatus.COMPLETED),
+        # Completion is keyed off the PR (in the orchestrator), not the session
+        # status, so an ended session with no PR maps to FAILED here.
+        ('exit', 'finished', TaskStatus.FAILED),
         ('exit', 'usage_limit_exceeded', TaskStatus.FAILED),
         ('error', None, TaskStatus.FAILED),
     ],

@@ -8,7 +8,6 @@ from app.devin_client import DevinClient
 from app.models import Issue
 from app.models import Task
 from app.models import TaskStatus
-from app.models import is_session_finished
 from app.models import map_devin_status
 from app.prompt import build_remediation_prompt
 from app.prompt import build_session_title
@@ -81,10 +80,15 @@ class Orchestrator:
         status = self._devin.get_session(task.devin_session_id)
         if status.pr_url:
             task.pr_url = status.pr_url
-        # The workflow's goal is a PR, so finishing without one is a failure to surface.
-        if is_session_finished(status.status, status.status_detail) and not task.pr_url:
+        # A delivered pull request is the success signal. Devin sessions often stay
+        # open "awaiting instructions" after the work is done, so completion is keyed
+        # off the PR rather than the session reaching a finished state.
+        if task.pr_url:
+            task.status = TaskStatus.COMPLETED
+            task.notes = f'Devin opened a pull request: {task.pr_url}'
+        elif status.status in ('exit', 'error'):
             task.status = TaskStatus.FAILED
-            task.notes = 'Devin finished without creating a pull request'
+            task.notes = 'Devin ended without creating a pull request'
         else:
             task.status = map_devin_status(status.status, status.status_detail)
             task.notes = f'Devin status: {status.status or "unknown"}'
