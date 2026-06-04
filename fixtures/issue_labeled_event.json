@@ -1,0 +1,23 @@
+{
+  "action": "labeled",
+  "label": {
+    "name": "devin-remediate"
+  },
+  "issue": {
+    "number": 1,
+    "title": "Improve developer setup documentation clarity",
+    "html_url": "https://github.com/YOUR_USERNAME/superset/issues/1",
+    "body": "The local development setup steps are easy to misread. Please clarify the prerequisites and add a short troubleshooting note. Limit the change to documentation only.",
+    "labels": [
+      {
+        "name": "documentation"
+      },
+      {
+        "name": "devin-remediate"
+      }
+    ]
+  },
+  "repository": {
+    "full_name": "YOUR_USERNAME/superset"
+  }
+}

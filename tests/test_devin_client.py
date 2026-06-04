@@ -1,0 +1,91 @@
+"""Tests for the Devin v3 API client with mocked HTTP."""
+
+from __future__ import annotations
+
+from pytest_mock import MockerFixture
+
+from app.devin_client import DevinClient
+
+ORG_ID = 'org-test'
+
+
+def _client() -> DevinClient:
+    """Build a client pointed at a deterministic org and base URL."""
+    return DevinClient(api_key='cog_test', org_id=ORG_ID, base_url='https://api.devin.ai')
+
+
+def _mock_response(mocker: MockerFixture, payload: dict) -> object:
+    """Build a fake requests response returning the given payload."""
+    response = mocker.Mock()
+    response.json.return_value = payload
+    response.raise_for_status.return_value = None
+    return response
+
+
+def test_create_session_should_post_to_v3_org_url_and_parse_response(mocker: MockerFixture) -> None:
+    client = _client()
+    post = mocker.patch.object(
+        client._session,
+        'post',
+        return_value=_mock_response(
+            mocker,
+            {'session_id': 'devin-123', 'url': 'https://app.devin.ai/sessions/123', 'status': 'new'},
+        ),
+    )
+
+    session = client.create_session(prompt='do the thing', title='My title')
+
+    assert session.session_id == 'devin-123'
+    assert session.url == 'https://app.devin.ai/sessions/123'
+    args, kwargs = post.call_args
+    assert args[0] == 'https://api.devin.ai/v3/organizations/org-test/sessions'
+    assert kwargs['json']['prompt'] == 'do the thing'
+    assert kwargs['json']['title'] == 'My title'
+
+
+def test_get_session_should_extract_status_detail_and_pr(mocker: MockerFixture) -> None:
+    client = _client()
+    get = mocker.patch.object(
+        client._session,
+        'get',
+        return_value=_mock_response(
+            mocker,
+            {
+                'status': 'exit',
+                'status_detail': 'finished',
+                'pull_requests': [{'pr_url': 'https://github.com/x/y/pull/9', 'pr_state': 'open'}],
+            },
+        ),
+    )
+
+    status = client.get_session('devin-123')
+
+    assert status.status == 'exit'
+    assert status.status_detail == 'finished'
+    assert status.pr_url == 'https://github.com/x/y/pull/9'
+    args, _ = get.call_args
+    assert args[0] == 'https://api.devin.ai/v3/organizations/org-test/sessions/devin-123'
+
+
+def test_get_session_should_handle_empty_pull_requests(mocker: MockerFixture) -> None:
+    client = _client()
+    mocker.patch.object(
+        client._session,
+        'get',
+        return_value=_mock_response(mocker, {'status': 'running', 'status_detail': 'working', 'pull_requests': []}),
+    )
+
+    status = client.get_session('devin-123')
+
+    assert status.pr_url == ''
+
+
+def test_send_message_should_post_to_v3_messages_endpoint(mocker: MockerFixture) -> None:
+    client = _client()
+    post = mocker.patch.object(client._session, 'post', return_value=_mock_response(mocker, {}))
+
+    client.send_message('devin-123', 'hello')
+
+    args, kwargs = post.call_args
+    assert args[0] == 'https://api.devin.ai/v3/organizations/org-test/sessions/devin-123/messages'
+    assert kwargs['json'] == {'message': 'hello'}
