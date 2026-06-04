@@ -80,6 +80,46 @@ def test_get_session_should_handle_empty_pull_requests(mocker: MockerFixture) ->
     assert status.pr_url == ''
 
 
+def test_list_sessions_should_follow_pagination(mocker: MockerFixture) -> None:
+    client = _client()
+    page1 = _mock_response(
+        mocker,
+        {
+            'items': [
+                {'session_id': 's1', 'url': 'u1', 'title': 'Remediate #1: a', 'status': 'running', 'pull_requests': []},
+            ],
+            'has_next_page': True,
+            'end_cursor': 'cur1',
+        },
+    )
+    page2 = _mock_response(
+        mocker,
+        {
+            'items': [
+                {
+                    'session_id': 's2',
+                    'url': 'u2',
+                    'title': 'Remediate #2: b',
+                    'status': 'exit',
+                    'status_detail': 'finished',
+                    'pull_requests': [{'pr_url': 'https://github.com/x/y/pull/2', 'pr_state': 'open'}],
+                },
+            ],
+            'has_next_page': False,
+            'end_cursor': None,
+        },
+    )
+    get = mocker.patch.object(client._session, 'get', side_effect=[page1, page2])
+
+    sessions = client.list_sessions(page_size=1)
+
+    assert [s.session_id for s in sessions] == ['s1', 's2']
+    assert sessions[1].pr_url == 'https://github.com/x/y/pull/2'
+    assert get.call_count == 2
+    _, kwargs = get.call_args
+    assert kwargs['params']['after'] == 'cur1'
+
+
 def test_send_message_should_post_to_v3_messages_endpoint(mocker: MockerFixture) -> None:
     client = _client()
     post = mocker.patch.object(client._session, 'post', return_value=_mock_response(mocker, {}))

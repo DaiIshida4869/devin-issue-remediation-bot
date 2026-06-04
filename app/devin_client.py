@@ -30,6 +30,18 @@ class DevinSessionStatus:
     raw: dict
 
 
+@dataclass
+class DevinSessionSummary:
+    """One session from the organization-wide session list."""
+
+    session_id: str
+    url: str
+    title: str | None
+    status: str | None
+    status_detail: str | None
+    pr_url: str
+
+
 class DevinClient:
     """Minimal wrapper for the Devin v3 session endpoints used by the bot."""
 
@@ -75,6 +87,26 @@ class DevinClient:
             raw=data,
         )
 
+    def list_sessions(self, page_size: int = 100) -> list[DevinSessionSummary]:
+        """List every session in the organization, following cursor pagination."""
+        summaries: list[DevinSessionSummary] = []
+        cursor: str | None = None
+        while True:
+            params: dict = {'first': page_size}
+            if cursor is not None:
+                params['after'] = cursor
+            response = self._session.get(self._sessions_url, params=params, timeout=self._timeout)
+            response.raise_for_status()
+            data = response.json()
+            for item in data.get('items', []):
+                summaries.append(_to_summary(item))
+            if not data.get('has_next_page'):
+                break
+            cursor = data.get('end_cursor')
+            if not cursor:
+                break
+        return summaries
+
     def send_message(self, session_id: str, message: str) -> None:
         response = self._session.post(
             f'{self._sessions_url}/{session_id}/messages',
@@ -82,6 +114,18 @@ class DevinClient:
             timeout=self._timeout,
         )
         response.raise_for_status()
+
+
+def _to_summary(item: dict) -> DevinSessionSummary:
+    """Convert a session list item into a DevinSessionSummary."""
+    return DevinSessionSummary(
+        session_id=item.get('session_id', ''),
+        url=item.get('url', ''),
+        title=item.get('title'),
+        status=item.get('status'),
+        status_detail=item.get('status_detail'),
+        pr_url=_first_pull_request_url(item),
+    )
 
 
 def _first_pull_request_url(data: dict) -> str:

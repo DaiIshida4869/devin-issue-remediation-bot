@@ -68,3 +68,15 @@ def map_devin_status(status: str | None, status_detail: str | None) -> TaskStatu
     if status in ('exit', 'error'):
         return TaskStatus.FAILED
     return TaskStatus.WORKING
+
+
+def classify_task_status(status: str | None, status_detail: str | None, has_pr: bool) -> TaskStatus:
+    """Decide a task's status from its Devin session, treating a PR as success.
+
+    A delivered pull request is the success signal regardless of the session
+    state, so this is the single source of truth shared by the live poll and the
+    Devin-sourced report rebuild.
+    """
+    if has_pr:
+        return TaskStatus.COMPLETED
+    return map_devin_status(status, status_detail)

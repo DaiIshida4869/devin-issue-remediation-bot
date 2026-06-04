@@ -58,6 +58,15 @@ def _cmd_poll(_args: argparse.Namespace, settings: Settings) -> int:
     return 0
 
 
+def _cmd_sync(_args: argparse.Namespace, settings: Settings) -> int:
+    _require_settings(settings)
+    orchestrator = _build_orchestrator(settings)
+    tasks = orchestrator.sync_from_devin()
+    for task in tasks:
+        print(f'#{task.issue_number}: {task.status.value} (PR: {task.pr_url or "-"})')
+    return 0
+
+
 def _cmd_report(_args: argparse.Namespace, settings: Settings) -> int:
     store = TaskStore(settings.tasks_path)
     print(render_report(store.load()))
@@ -79,6 +88,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     poll = subparsers.add_parser('poll', help='Refresh active tasks from Devin')
     poll.set_defaults(func=_cmd_poll)
+
+    sync = subparsers.add_parser('sync', help='Rebuild the report from all Devin remediation sessions')
+    sync.set_defaults(func=_cmd_sync)
 
     report = subparsers.add_parser('report', help='Print the current Markdown report')
     report.set_defaults(func=_cmd_report)

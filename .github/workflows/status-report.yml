@@ -1,0 +1,58 @@
+# Scheduled observability: rebuild the remediation status report from Devin and
+# publish it to reports/status.md so it is always current on GitHub -- no local
+# `poll` needed. It derives state from the Devin session list (sessions titled
+# "Remediate #<n>: ...") rather than any committed local state.
+#
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   DEVIN_API_KEY  -- the cog_* service-user token
+#   DEVIN_ORG_ID   -- the org-* organization id
+name: Remediation status report
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the bot
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          version: "0.11.19"
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Rebuild the report from Devin sessions
+        env:
+          DEVIN_API_KEY: ${{ secrets.DEVIN_API_KEY }}
+          DEVIN_ORG_ID: ${{ secrets.DEVIN_ORG_ID }}
+        run: uv run python main.py sync
+
+      - name: Publish the report
+        run: |
+          mkdir -p reports
+          cp data/report.md reports/status.md
+          cat reports/status.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit the report if it changed
+        run: |
+          git add reports/status.md
+          if git diff --cached --quiet; then
+            echo "Report unchanged; nothing to commit."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore: refresh remediation status report"
+            git push
+          fi

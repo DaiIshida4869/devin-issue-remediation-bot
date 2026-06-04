@@ -10,6 +10,7 @@ from pytest_mock import MockerFixture
 from app.devin_client import DevinClient
 from app.devin_client import DevinSession
 from app.devin_client import DevinSessionStatus
+from app.devin_client import DevinSessionSummary
 from app.models import Issue
 from app.models import TaskStatus
 from app.orchestrator import Orchestrator
@@ -137,6 +138,58 @@ def test_poll_should_record_error_and_continue_on_request_exception(
 
     assert tasks[0].status == TaskStatus.SESSION_CREATED
     assert 'Failed to poll Devin' in tasks[0].notes
+
+
+def test_sync_from_devin_should_rebuild_report_from_matching_sessions(
+    tmp_path, mocker: MockerFixture, fixed_clock: Callable[[], str]
+) -> None:
+    devin = mocker.Mock(spec=DevinClient)
+    devin.list_sessions.return_value = [
+        DevinSessionSummary(
+            session_id='s7',
+            url='https://app.devin.ai/sessions/s7',
+            title='Remediate #7: Clarify docs',
+            status='running',
+            status_detail='waiting_for_user',
+            pr_url='https://github.com/example/superset/pull/8',
+        ),
+        # A session that is not ours (no "Remediate #" title) is ignored.
+        DevinSessionSummary(
+            session_id='sx', url='u', title='Add test coverage', status='running', status_detail='working', pr_url=''
+        ),
+    ]
+    orchestrator = _orchestrator(tmp_path, devin, fixed_clock)
+
+    tasks = orchestrator.sync_from_devin()
+
+    assert len(tasks) == 1
+    assert tasks[0].issue_number == 7
+    assert tasks[0].issue_title == 'Clarify docs'
+    # A delivered PR marks the task completed even while the session awaits the user.
+    assert tasks[0].status == TaskStatus.COMPLETED
+    report = (tmp_path / 'report.md').read_text(encoding='utf-8')
+    assert '| #7 |' in report
+
+
+def test_sync_from_devin_should_keep_one_task_per_issue(
+    tmp_path, mocker: MockerFixture, fixed_clock: Callable[[], str]
+) -> None:
+    devin = mocker.Mock(spec=DevinClient)
+    # The list is newest-first, so the first session for an issue wins.
+    devin.list_sessions.return_value = [
+        DevinSessionSummary(
+            session_id='newest', url='u', title='Remediate #7: x', status='running', status_detail='working', pr_url=''
+        ),
+        DevinSessionSummary(
+            session_id='older', url='u', title='Remediate #7: x', status='exit', status_detail='finished', pr_url='pr'
+        ),
+    ]
+    orchestrator = _orchestrator(tmp_path, devin, fixed_clock)
+
+    tasks = orchestrator.sync_from_devin()
+
+    assert len(tasks) == 1
+    assert tasks[0].devin_session_id == 'newest'
 
 
 def test_poll_should_skip_completed_tasks(

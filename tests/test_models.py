@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.models import TaskStatus
+from app.models import classify_task_status
 from app.models import map_devin_status
 
 
@@ -37,3 +38,13 @@ def test_map_devin_status_should_default_to_working_for_none() -> None:
 
 def test_map_devin_status_should_default_to_working_for_unknown() -> None:
     assert map_devin_status('some_future_state', None) == TaskStatus.WORKING
+
+
+def test_classify_task_status_should_be_completed_when_pr_present() -> None:
+    # A PR is the success signal even while the session waits on a human.
+    assert classify_task_status('running', 'waiting_for_user', has_pr=True) == TaskStatus.COMPLETED
+
+
+def test_classify_task_status_should_fall_back_to_session_status_without_pr() -> None:
+    assert classify_task_status('running', 'working', has_pr=False) == TaskStatus.WORKING
+    assert classify_task_status('exit', None, has_pr=False) == TaskStatus.FAILED

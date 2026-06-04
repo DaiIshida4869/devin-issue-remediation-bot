@@ -37,7 +37,7 @@ URL, keeping `tasks.json` and `report.md` current.
 | [app/task_store.py](app/task_store.py)     | Persist tasks to `data/tasks.json`                            |
 | [app/report.py](app/report.py)             | Render `data/report.md` from tasks                            |
 | [app/orchestrator.py](app/orchestrator.py) | Tie the pieces together: delegate, poll, report               |
-| [app/cli.py](app/cli.py)                   | `remediate` / `poll` / `report` subcommands                   |
+| [app/cli.py](app/cli.py)                   | `remediate` / `poll` / `sync` / `report` subcommands          |
 
 ## Event trigger
 
@@ -132,6 +132,14 @@ smoke test needs no secrets, so a reviewer can verify the image builds and runs 
   Devin session id/url, PR url, timestamps.
 - **`data/report.md`** — a human-readable table with a status summary line
   (e.g. `Completed: 2 | Failed: 1`) so a leader can see throughput and what needs attention.
+- **[`reports/status.md`](reports/status.md)** — the same report, refreshed on a schedule by
+  [.github/workflows/status-report.yml](.github/workflows/status-report.yml) and committed back,
+  so the current state is always visible on GitHub without running anything locally.
+
+The `sync` command (`uv run python main.py sync`) is what the scheduled workflow runs: instead of
+reading local state, it **lists the org's Devin sessions, recognizes the bot's own by their
+`Remediate #<n>:` title, and rebuilds the report** — so Devin is the source of truth and no
+`tasks.json` needs to persist between CI runs.
 
 A task is marked **completed once Devin opens a pull request** — the session often lingers in
 `waiting_for_user` ("awaiting instructions") after the work is done, so the PR, not the session
