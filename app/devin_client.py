@@ -40,6 +40,7 @@ class DevinSessionSummary:
     status: str | None
     status_detail: str | None
     pr_url: str
+    created_at: int | None = None
 
 
 class DevinClient:
@@ -87,11 +88,17 @@ class DevinClient:
             raw=data,
         )
 
-    def list_sessions(self, page_size: int = 100) -> list[DevinSessionSummary]:
-        """List every session in the organization, following cursor pagination."""
+    def list_sessions(self, page_size: int = 100, max_pages: int = 50) -> list[DevinSessionSummary]:
+        """List every session in the organization, following cursor pagination.
+
+        Guards against a misbehaving API: a repeated or missing cursor while more
+        pages are claimed, and a hard page cap, all raise rather than loop forever
+        or silently truncate the report.
+        """
         summaries: list[DevinSessionSummary] = []
         cursor: str | None = None
-        while True:
+        seen_cursors: set[str] = set()
+        for _ in range(max_pages):
             params: dict = {'first': page_size}
             if cursor is not None:
                 params['after'] = cursor
@@ -101,11 +108,14 @@ class DevinClient:
             for item in data.get('items', []):
                 summaries.append(_to_summary(item))
             if not data.get('has_next_page'):
-                break
+                return summaries
             cursor = data.get('end_cursor')
             if not cursor:
-                break
-        return summaries
+                raise RuntimeError('Devin reported more pages but returned no end_cursor')
+            if cursor in seen_cursors:
+                raise RuntimeError('Devin returned a repeating pagination cursor')
+            seen_cursors.add(cursor)
+        raise RuntimeError(f'Exceeded max_pages ({max_pages}) while listing Devin sessions')
 
     def send_message(self, session_id: str, message: str) -> None:
         response = self._session.post(
@@ -125,6 +135,7 @@ def _to_summary(item: dict) -> DevinSessionSummary:
         status=item.get('status'),
         status_detail=item.get('status_detail'),
         pr_url=_first_pull_request_url(item),
+        created_at=item.get('created_at'),
     )
 
 

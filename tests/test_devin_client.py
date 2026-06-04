@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from pytest_mock import MockerFixture
 
 from app.devin_client import DevinClient
@@ -118,6 +119,15 @@ def test_list_sessions_should_follow_pagination(mocker: MockerFixture) -> None:
     assert get.call_count == 2
     _, kwargs = get.call_args
     assert kwargs['params']['after'] == 'cur1'
+
+
+def test_list_sessions_should_raise_when_more_pages_but_no_cursor(mocker: MockerFixture) -> None:
+    client = _client()
+    bad_page = _mock_response(mocker, {'items': [], 'has_next_page': True, 'end_cursor': None})
+    mocker.patch.object(client._session, 'get', return_value=bad_page)
+
+    with pytest.raises(RuntimeError):
+        client.list_sessions()
 
 
 def test_send_message_should_post_to_v3_messages_endpoint(mocker: MockerFixture) -> None:

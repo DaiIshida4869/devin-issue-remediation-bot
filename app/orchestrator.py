@@ -86,13 +86,15 @@ class Orchestrator:
         workflow runs, so the published report stays current without local state.
         """
         now = self._now()
+        # Sort newest-first ourselves so dedup does not depend on the API's order.
+        summaries = sorted(self._devin.list_sessions(), key=lambda item: item.created_at or 0, reverse=True)
         seen: set[int] = set()
         tasks: list[Task] = []
-        for summary in self._devin.list_sessions():
+        for summary in summaries:
             task = _task_from_session(summary, now)
             if task is None:
                 continue
-            # The newest session per issue wins (the list is newest-first).
+            # The newest session per issue wins.
             if task.issue_number in seen:
                 continue
             seen.add(task.issue_number)

@@ -175,13 +175,25 @@ def test_sync_from_devin_should_keep_one_task_per_issue(
     tmp_path, mocker: MockerFixture, fixed_clock: Callable[[], str]
 ) -> None:
     devin = mocker.Mock(spec=DevinClient)
-    # The list is newest-first, so the first session for an issue wins.
+    # Returned out of order; sync should keep the one with the newest created_at.
     devin.list_sessions.return_value = [
         DevinSessionSummary(
-            session_id='newest', url='u', title='Remediate #7: x', status='running', status_detail='working', pr_url=''
+            session_id='older',
+            url='u',
+            title='Remediate #7: x',
+            status='exit',
+            status_detail='finished',
+            pr_url='pr',
+            created_at=100,
         ),
         DevinSessionSummary(
-            session_id='older', url='u', title='Remediate #7: x', status='exit', status_detail='finished', pr_url='pr'
+            session_id='newest',
+            url='u',
+            title='Remediate #7: x',
+            status='running',
+            status_detail='working',
+            pr_url='',
+            created_at=200,
         ),
     ]
     orchestrator = _orchestrator(tmp_path, devin, fixed_clock)

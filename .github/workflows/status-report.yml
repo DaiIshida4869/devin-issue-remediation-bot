@@ -16,6 +16,11 @@ on:
 permissions:
   contents: write
 
+# Serialize runs so a scheduled and a manual run never race on the commit/push.
+concurrency:
+  group: status-report
+  cancel-in-progress: false
+
 jobs:
   report:
     runs-on: ubuntu-latest
