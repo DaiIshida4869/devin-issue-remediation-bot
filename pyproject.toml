@@ -10,6 +10,11 @@ dependencies = [
     "requests>=2.34.2",
 ]
 
+[tool.uv]
+# Only resolve packages published more than a week ago, so brand-new releases
+# get time to be vetted before they enter the lockfile on the next re-resolve.
+exclude-newer = "1 week"
+
 [tool.ruff]
 line-length = 120
 
