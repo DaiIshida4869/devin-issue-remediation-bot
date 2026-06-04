@@ -132,12 +132,13 @@ smoke test needs no secrets, so a reviewer can verify the image builds and runs 
   Devin session id/url, PR url, timestamps.
 - **`data/report.md`** — a human-readable table with a status summary line
   (e.g. `Completed: 2 | Failed: 1`) so a leader can see throughput and what needs attention.
-- **[`reports/status.md`](reports/status.md)** — the same report, refreshed on a schedule by
-  [.github/workflows/status-report.yml](.github/workflows/status-report.yml) and committed back,
-  so the current state is always visible on GitHub without running anything locally.
+- **CI run summary** — [.github/workflows/status-report.yml](.github/workflows/status-report.yml)
+  runs every 10 minutes (and on demand) and renders the report into the run's Job Summary plus a
+  downloadable artifact, so the latest run on the Actions tab always shows the current state with
+  nothing to run locally and nothing committed back to the repo.
 
-The `sync` command (`uv run python main.py sync`) is what the scheduled workflow runs: instead of
-reading local state, it **lists the org's Devin sessions, recognizes the bot's own by their
+The `sync` command (`uv run python main.py sync`) is what that workflow runs: instead of reading
+local state, it **lists the org's Devin sessions, recognizes the bot's own by their
 `Remediate #<n>:` title, and rebuilds the report** — so Devin is the source of truth and no
 `tasks.json` needs to persist between CI runs.
 
@@ -154,14 +155,15 @@ uv run pytest
 ```
 
 Tests cover event parsing, prompt construction, the task store, report rendering, the Devin
-client (mocked HTTP), and the orchestrator (mocked Devin client) — 41 cases.
+client (mocked HTTP), and the orchestrator (mocked Devin client) — 47 cases.
 
 ## Limitations
 
 - This is a demo, not a production GitHub App. The event trigger is a GitHub Actions
   workflow on the fork (issue labeled `devin-remediate`), not a standalone hosted webhook
   receiver; the bundled fixture replays the same payload locally.
-- No scheduler or dashboard; `poll` is run on demand.
+- No dashboard UI; `poll` is run on demand and the scheduled status report renders to the
+  Actions run summary rather than a hosted page.
 - PR extraction relies on Devin reporting the PR on the session; complex multi-PR flows are out
   of scope.
 - Scope was intentionally kept small to fit the 2–3 hour constraint.

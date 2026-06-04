@@ -1,7 +1,11 @@
 # Scheduled observability: rebuild the remediation status report from Devin and
-# publish it to reports/status.md so it is always current on GitHub -- no local
-# `poll` needed. It derives state from the Devin session list (sessions titled
-# "Remediate #<n>: ...") rather than any committed local state.
+# publish it to the run's Job Summary (and as a downloadable artifact) -- no local
+# `poll` and no commit back to the repo. It derives state from the Devin session
+# list (sessions titled "Remediate #<n>: ...") rather than any committed state, so
+# the latest run's Summary always shows the current picture.
+#
+# View it: Actions tab -> "Remediation status report" -> open the latest run ->
+# the report is rendered in the run Summary.
 #
 # Required repository secrets (Settings -> Secrets and variables -> Actions):
 #   DEVIN_API_KEY  -- the cog_* service-user token
@@ -14,12 +18,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-
-# Serialize runs so a scheduled and a manual run never race on the commit/push.
-concurrency:
-  group: status-report
-  cancel-in-progress: false
+  contents: read
 
 jobs:
   report:
@@ -44,20 +43,24 @@ jobs:
           DEVIN_ORG_ID: ${{ secrets.DEVIN_ORG_ID }}
         run: uv run python main.py sync
 
-      - name: Publish the report
+      - name: Publish the report to the run summary
+        # Still surface a summary if the sync step failed before writing the report.
+        if: ${{ !cancelled() }}
         run: |
-          mkdir -p reports
-          cp data/report.md reports/status.md
-          cat reports/status.md >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Commit the report if it changed
-        run: |
-          git add reports/status.md
-          if git diff --cached --quiet; then
-            echo "Report unchanged; nothing to commit."
+          if [ -f data/report.md ]; then
+            cat data/report.md >> "$GITHUB_STEP_SUMMARY"
           else
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git commit -m "chore: refresh remediation status report"
-            git push
+            {
+              echo "## Remediation status report unavailable"
+              echo
+              echo "\`uv run python main.py sync\` failed before generating data/report.md; see the job logs."
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
+
+      - name: Upload the report and task state
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: remediation-status
+          path: data/
+          if-no-files-found: ignore
