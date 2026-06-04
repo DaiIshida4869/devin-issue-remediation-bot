@@ -29,15 +29,15 @@ URL, keeping `tasks.json` and `report.md` current.
 
 ## Architecture
 
-| Component | Responsibility |
-|---|---|
-| [app/event.py](app/event.py) | Parse a GitHub `issues` webhook payload into a domain `Issue` |
-| [app/prompt.py](app/prompt.py) | Build the scoped remediation prompt and session title |
-| [app/devin_client.py](app/devin_client.py) | Wrap the Devin v3 sessions API (create / get / message) |
-| [app/task_store.py](app/task_store.py) | Persist tasks to `data/tasks.json` |
-| [app/report.py](app/report.py) | Render `data/report.md` from tasks |
-| [app/orchestrator.py](app/orchestrator.py) | Tie the pieces together: delegate, poll, report |
-| [app/cli.py](app/cli.py) | `remediate` / `poll` / `report` subcommands |
+| Component                                  | Responsibility                                                |
+| ------------------------------------------ | ------------------------------------------------------------- |
+| [app/event.py](app/event.py)               | Parse a GitHub `issues` webhook payload into a domain `Issue` |
+| [app/prompt.py](app/prompt.py)             | Build the scoped remediation prompt and session title         |
+| [app/devin_client.py](app/devin_client.py) | Wrap the Devin v3 sessions API (create / get / message)       |
+| [app/task_store.py](app/task_store.py)     | Persist tasks to `data/tasks.json`                            |
+| [app/report.py](app/report.py)             | Render `data/report.md` from tasks                            |
+| [app/orchestrator.py](app/orchestrator.py) | Tie the pieces together: delegate, poll, report               |
+| [app/cli.py](app/cli.py)                   | `remediate` / `poll` / `report` subcommands                   |
 
 ## Event trigger
 
@@ -62,8 +62,8 @@ To deploy the trigger on the fork:
 
 Devin is the remediation worker, not a helper. Given a repository and an issue URL, it inspects
 the code, makes the smallest safe change, runs checks when practical, and opens a pull request.
-The Python service is only an orchestrator: it decides *what* to delegate and records *what
-happened*. The prompt is built in [app/prompt.py](app/prompt.py).
+The Python service is only an orchestrator: it decides _what_ to delegate and records _what
+happened_. The prompt is built in [app/prompt.py](app/prompt.py).
 
 ## Setup
 
@@ -80,6 +80,10 @@ Environment variables (see [.env.example](.env.example)):
 - `DATA_DIR` — output directory for `tasks.json` / `report.md` (defaults to `data`)
 
 ## Run locally (uv)
+
+[fixtures/issue_labeled_event.json](fixtures/issue_labeled_event.json) is a sample event
+payload — edit its `repository.full_name` and `issue` fields to target a real issue in your
+fork before running the `remediate` command below.
 
 ```bash
 # Simulate the production event from a fixture
@@ -118,8 +122,6 @@ smoke test needs no secrets, so a reviewer can verify the image builds and runs 
 
 ## Observability
 
-The question "how would I know this is working?" is answered by two artifacts:
-
 - **`data/tasks.json`** — machine-readable state per delegated task: issue, status,
   Devin session id/url, PR url, timestamps.
 - **`data/report.md`** — a human-readable table with a status summary line
@@ -139,16 +141,10 @@ client (mocked HTTP), and the orchestrator (mocked Devin client) — 41 cases.
 
 ## Limitations
 
-- This is a take-home demo, not a production GitHub App. The event trigger is a GitHub Actions
+- This is a demo, not a production GitHub App. The event trigger is a GitHub Actions
   workflow on the fork (issue labeled `devin-remediate`), not a standalone hosted webhook
   receiver; the bundled fixture replays the same payload locally.
 - No scheduler or dashboard; `poll` is run on demand.
 - PR extraction relies on Devin reporting the PR on the session; complex multi-PR flows are out
   of scope.
 - Scope was intentionally kept small to fit the 2–3 hour constraint.
-
-## Next steps
-
-- Package as a GitHub App with a hosted webhook and an approval gate before PR merge.
-- Route tasks by policy (security scan findings, dependency upgrades, CI-failure remediation).
-- Richer metrics (lead time, success rate) and Slack notifications.
