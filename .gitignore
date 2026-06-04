@@ -1,0 +1,27 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# macOS files
+.DS_Store
+
+# Editor and IDE files
+.vscode/
+
+# Virtual environments
+.venv
+
+# Secrets
+.env
+
+# Generated outputs (tasks.json / report.md)
+data/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.uv-cache/
