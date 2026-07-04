@@ -1,4 +1,4 @@
-# Scheduled observability: rebuild the remediation status report from Devin and
+# Manually triggered observability: rebuild the remediation status report from Devin and
 # publish it to the run's Job Summary (and as a downloadable artifact) -- no local
 # `poll` and no commit back to the repo. It derives state from the Devin session
 # list (sessions titled "Remediate #<n>: ...") rather than any committed state, so
@@ -12,9 +12,9 @@
 #   DEVIN_ORG_ID   -- the org-* organization id
 name: Remediation status report
 
+# The scheduled trigger is disabled while the Devin API is not running; trigger
+# the workflow manually from the Actions tab when a report is needed.
 on:
-  schedule:
-    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 permissions:

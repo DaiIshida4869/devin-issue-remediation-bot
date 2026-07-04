@@ -122,11 +122,12 @@ smoke test needs no secrets, so a reviewer can verify the image builds and runs 
 
 ## Observability
 
-Status is meant to be checked from the web: the scheduled CI run summary is the primary view, and
+Status is meant to be checked from the web: the CI run summary is the primary view, and
 the same state is also written to disk for local inspection.
 
 - **CI run summary (primary)** — [.github/workflows/status-report.yml](.github/workflows/status-report.yml)
-  runs every 10 minutes (and on demand) and renders the report into the run's Job Summary plus a
+  is triggered manually (`workflow_dispatch`; the scheduled trigger is disabled while the Devin
+  API is not running) and renders the report into the run's Job Summary plus a
   downloadable artifact, so the latest run on the Actions tab always shows the current state with
   nothing to run locally and nothing committed back to the repo. The trigger lives on the fork,
   but this status-report workflow lives in **this** repo: add `DEVIN_API_KEY` and `DEVIN_ORG_ID`
@@ -162,7 +163,7 @@ client (mocked HTTP), and the orchestrator (mocked Devin client) — 47 cases.
 - This is a demo, not a production GitHub App. The event trigger is a GitHub Actions
   workflow on the fork (issue labeled `devin-remediate`), not a standalone hosted webhook
   receiver; the bundled fixture replays the same payload locally.
-- No dashboard UI; `poll` is run on demand and the scheduled status report renders to the
+- No dashboard UI; `poll` is run on demand and the status report renders to the
   Actions run summary rather than a hosted page.
 - PR extraction relies on Devin reporting the PR on the session; complex multi-PR flows are out
   of scope.
@@ -185,11 +186,11 @@ client (mocked HTTP), and the orchestrator (mocked Devin client) — 47 cases.
   Push status to Slack, file Jira tickets, and feed weekly engineering reports from the same
   session-derived source of truth.
 
-- **Reduce scheduled CI waste**
+- **Smarter report triggering**
 
-  The report reruns every 10 minutes even when nothing is active; trigger it via
-  `repository_dispatch` when a PR lands, poll frequently only while sessions are live, and cache
-  the `uv` setup.
+  The report currently runs only on manual dispatch; trigger it via
+  `repository_dispatch` when a PR lands, poll on a schedule only while sessions are live, and
+  cache the `uv` setup.
 
 - **Report retention / log rotation**
 
